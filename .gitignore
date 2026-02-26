@@ -1,0 +1,17 @@
+*.png
+
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.csv
+*.h5
+*.pt
+*.ckpt
+*.ipynb_checkpoints/
+
+Datasets/
+Result/
+node_modules/
