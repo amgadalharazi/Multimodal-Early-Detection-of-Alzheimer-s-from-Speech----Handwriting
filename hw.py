@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.impute import KNNImputer
+from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.metrics import (
     roc_auc_score, accuracy_score, precision_score,
     recall_score, f1_score, classification_report
@@ -30,12 +30,12 @@ DATA_DIR   = BASE_DIR / "Datasets"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-BATCH_SIZE = 64
+BATCH_SIZE = 256
 NUM_EPOCHS = 100
 PATIENCE   = 12
 SEED       = 42
-N_HEALTHY  = 500
-N_AD       = 500
+N_HEALTHY  = 100_000
+N_AD       = 100_000
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
@@ -182,7 +182,10 @@ def train_hw_model():
         X_tmp, y_tmp, test_size=0.15, stratify=y_tmp, random_state=SEED)
 
     # ── Impute & scale ──
-    imputer = KNNImputer(n_neighbors=5)
+    # SimpleImputer (median) used instead of KNN for speed at 200k+ scale.
+    # KNN imputation on 200k rows would take many minutes; median is equivalent
+    # in practice for this synthetic dataset.
+    imputer = SimpleImputer(strategy="median")
     scaler  = StandardScaler()
     X_train = scaler.fit_transform(imputer.fit_transform(X_train))
     X_val   = scaler.transform(imputer.transform(X_val))
