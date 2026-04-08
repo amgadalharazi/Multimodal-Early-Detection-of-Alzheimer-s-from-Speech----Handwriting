@@ -15,3 +15,5 @@ __pycache__/
 Datasets/
 Result/
 node_modules/
+healthy/
+audio/
