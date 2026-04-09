@@ -11,9 +11,14 @@ __pycache__/
 *.pt
 *.ckpt
 *.ipynb_checkpoints/
+*.DS_Store
 
 Datasets/
 Result/
 node_modules/
 healthy/
 audio/
+train/
+test/
+model/
+Models/
