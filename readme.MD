@@ -1,6 +1,6 @@
 # 🧠 Multimodal Alzheimer's Detection
 
-A research-grade machine learning pipeline that detects Alzheimer's Disease (AD) from **two independent modalities** — speech/clinical data and digital handwriting — using deep neural networks and a classical voting ensemble. Designed to be modular, reproducible, and extensible.
+A research-grade machine learning pipeline that detects Alzheimer's Disease (AD) from **three independent modalities** — speech/clinical data, digital handwriting, and raw audio — using deep neural networks and a classical voting ensemble, fused into a single weighted ensemble model. Designed to be modular, reproducible, and extensible.
 
 > ⚠️ **Medical Disclaimer**: This is a research tool only. It is not a diagnostic device and must not be used as a substitute for professional medical evaluation. Always consult a qualified healthcare provider.
 
@@ -15,6 +15,7 @@ A research-grade machine learning pipeline that detects Alzheimer's Disease (AD)
   - [Modality 1: Speech + Clinical (NACC)](#modality-1-speech--clinical-nacc)
   - [Modality 2: Digital Handwriting](#modality-2-digital-handwriting)
   - [Modality 3: Raw Audio (speech_train.py)](#modality-3-raw-audio-speech_trainpy)
+- [Ensemble & Fusion](#ensemble--fusion)
 - [Installation](#installation)
 - [Dataset Setup](#dataset-setup)
 - [Usage](#usage)
@@ -39,46 +40,48 @@ Alzheimer's Disease leaves measurable traces in how people **speak** and **write
 - **Digital handwriting kinematics** (pressure, velocity, tremor, pen lifts) from a synthetic dataset
 - **Raw audio features** (60+ acoustic features extracted with `librosa`) for an improved standalone speech classifier
 
-All three approaches produce independent probability estimates that can be ensembled into a final risk score.
+All three approaches produce independent probability estimates that are fused into a final AUC-weighted ensemble risk score stored in `result/final_model.pt`.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Multimodal AD Detection                      │
-│                                                                 │
-│  ┌──────────────────────┐    ┌──────────────────────────────┐   │
-│  │  Speech + Clinical   │    │   Digital Handwriting        │   │
-│  │  (NACC + synthetic   │    │   (200,000-row synthetic     │   │
-│  │   speech features)   │    │    dataset)                  │   │
-│  │                      │    │                              │   │
-│  │  MultimodalNet       │    │  MultimodalNet               │   │
-│  │  (4-layer MLP)       │    │  (4-layer MLP)               │   │
-│  │  ──────────────      │    │  ──────────────              │   │
-│  │  Linear(→128)        │    │  Linear(→128)                │   │
-│  │  BatchNorm + ReLU    │    │  BatchNorm + ReLU            │   │
-│  │  Dropout(0.4)        │    │  Dropout(0.4)                │   │
-│  │  Linear(→64)         │    │  Linear(→64)                 │   │
-│  │  Linear(→32)         │    │  Linear(→32)                 │   │
-│  │  Linear(→1)          │    │  Linear(→1)                  │   │
-│  │  BCEWithLogitsLoss   │    │  BCEWithLogitsLoss           │   │
-│  └──────────┬───────────┘    └─────────────┬────────────────┘   │
-│             │  P(AD)                        │  P(AD)             │
-│             └───────────────┬───────────────┘                    │
-│                             ▼                                   │
-│                    Ensemble Average                             │
-│                    Risk Score + Label                           │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Multimodal AD Detection                          │
+│                                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
+│  │ Speech+Clinical  │  │ Digital          │  │ Raw Audio        │  │
+│  │ (NACC + synth.   │  │ Handwriting      │  │ (librosa 60+     │  │
+│  │  speech feats)   │  │ (200k synthetic) │  │  features)       │  │
+│  │                  │  │                  │  │                  │  │
+│  │  MultimodalNet   │  │  MultimodalNet   │  │  MultimodalNet   │  │
+│  │  (4-layer MLP)   │  │  (4-layer MLP)   │  │  (4-layer MLP)   │  │
+│  │  ────────────    │  │  ────────────    │  │  ────────────    │  │
+│  │  Linear(→128)    │  │  Linear(→128)    │  │  Linear(→128)    │  │
+│  │  BatchNorm+ReLU  │  │  BatchNorm+ReLU  │  │  BatchNorm+ReLU  │  │
+│  │  Dropout(0.4)    │  │  Dropout(0.4)    │  │  Dropout(0.4)    │  │
+│  │  Linear(→64)     │  │  Linear(→64)     │  │  Linear(→64)     │  │
+│  │  Linear(→32)     │  │  Linear(→32)     │  │  Linear(→32)     │  │
+│  │  Linear(→1)      │  │  Linear(→1)      │  │  Linear(→1)      │  │
+│  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  │
+│           │  P(AD)              │  P(AD)              │  P(AD)     │
+│           └─────────────────────┴──────────┬──────────┘            │
+│                                            ▼                       │
+│                              AUC-Weighted Ensemble                  │
+│                              result/final_model.pt                 │
+│                              Risk Score + Label                    │
+└─────────────────────────────────────────────────────────────────────┘
 
-Separate:  speech_train.py
-           VotingClassifier (RF + SVM + GradientBoosting)
-           60+ acoustic features via librosa
-           Stratified K-Fold cross-validation
+Separate (speech_train.py):
+  VotingClassifier (RF + SVM + GradientBoosting)
+  60+ acoustic features via librosa
+  Stratified K-Fold cross-validation
+  → also exports a MultimodalNet .pt for fusion
 ```
 
-**MultimodalNet** (shared architecture for both MLP models):
+**MultimodalNet** (shared architecture across all three MLP models):
+
 | Layer | Size | Extras |
 |-------|------|--------|
 | Input | `d` features | — |
@@ -100,13 +103,15 @@ Separate:  speech_train.py
 ├── speech_train.py       # Standalone improved speech classifier (raw audio)
 │
 ├── Datasets/
-│   ├── nacc.csv          # NACC dataset (you must supply this)
-│   ├── speech_features.csv   # Auto-generated on first run
-│   └── handwriting_dataset.csv  # Auto-generated on first run
+│   ├── nacc.csv                    # NACC dataset (you must supply this)
+│   ├── speech_features.csv         # Auto-generated on first run
+│   └── handwriting_dataset.csv     # Auto-generated on first run
 │
 ├── result/
-│   ├── speech_model_complete.pt  # Saved speech+clinical checkpoint
-│   └── hw_model_complete.pt      # Saved handwriting checkpoint
+│   ├── speech_model_complete.pt          # Speech + clinical checkpoint
+│   ├── hw_model_complete.pt              # Handwriting checkpoint
+│   ├── speech_audio_model_complete.pt    # Raw audio checkpoint
+│   └── final_model.pt                    # Fused weighted ensemble
 │
 ├── model/                # Outputs from speech_train.py
 │   ├── alzheimer_pipeline.pkl
@@ -133,7 +138,7 @@ Separate:  speech_train.py
 
 **File:** `speech.py`
 
-Combines structured clinical data from the [NACC Uniform Data Set](https://naccdata.org/) with synthetic speech proxies generated per subject.
+Combines structured clinical data from the [NACC Uniform Data Set](https://naccdata.org/) with synthetic speech proxies generated per subject. Only `PACKET == "I"` (initial visit) rows where `NACCUDSD ∈ {1, 3}` (Normal = 1, AD = 3) are used.
 
 **Clinical features used:**
 
@@ -152,23 +157,23 @@ Combines structured clinical data from the [NACC Uniform Data Set](https://naccd
 
 **Synthetic speech features:**
 
-| Feature | Healthy range | AD range |
-|---------|--------------|----------|
-| `mfcc_mean` | ~0.2 | ~−1.5 |
-| `pitch_mean` (Hz) | ~155 | ~120 |
-| `speech_rate` (syll/s) | ~4.0 | ~2.2 |
-| `pause_rate` | ~0.8 | ~3.5 |
-| `hnr_db` | ~18 | ~11 |
-| `jitter_pct` | ~0.5% | ~1.2% |
-| `shimmer_pct` | ~3.0% | ~6.5% |
+| Feature | Healthy range | AD range | Clinical signal |
+|---------|--------------|----------|-----------------|
+| `mfcc_mean` | ~0.2 | ~−1.5 | Timbral quality |
+| `pitch_mean` (Hz) | ~155 | ~120 | Reduced prosody |
+| `speech_rate` (syll/s) | ~4.0 | ~2.2 | Processing speed |
+| `pause_rate` | ~0.8 | ~3.5 | Word-finding difficulty |
+| `hnr_db` | ~18 | ~11 | Vocal breathiness |
+| `jitter_pct` | ~0.5% | ~1.2% | Vocal cord instability |
+| `shimmer_pct` | ~3.0% | ~6.5% | Amplitude variability |
 
 **Engineered features:** `age_education`, `mmse_cdr`, `pitch_variance`
 
 **Training details:**
 - KNN Imputer (k=5) → StandardScaler → MultimodalNet
-- Adam optimiser, lr=1e-3, weight_decay=1e-5
+- Adam, lr=1e-3, weight_decay=1e-5
 - ReduceLROnPlateau scheduler (patience=5)
-- Early stopping (patience=15 epochs)
+- Early stopping (patience=15 epochs on val AUC)
 - Class-weighted BCE loss
 
 ---
@@ -177,7 +182,7 @@ Combines structured clinical data from the [NACC Uniform Data Set](https://naccd
 
 **File:** `hw.py`
 
-Generates a balanced 200,000-row synthetic dataset simulating pen-tablet writing tasks. Features are drawn from clinically-grounded distributions.
+Generates a balanced 200,000-row synthetic dataset (100k healthy / 100k AD) simulating pen-tablet writing tasks. Features are drawn from clinically-grounded distributions with ~6% MCAR missing values injected for realism.
 
 **Feature categories and key signals:**
 
@@ -192,10 +197,11 @@ Generates a balanced 200,000-row synthetic dataset simulating pen-tablet writing
 **Engineered features:** `fluency_score`, `tremor_pressure`, `size_variability`, `pause_ratio`
 
 **Training details:**
-- SimpleImputer (median strategy) → StandardScaler → MultimodalNet
+- SimpleImputer (median) → StandardScaler → MultimodalNet
 - Batch size 256, Adam lr=1e-3, weight_decay=1e-4
 - Early stopping (patience=12 epochs)
-- ~6% missing value injection for realism
+
+> KNN imputation is intentionally skipped here — it would take many minutes on 200k rows; median imputation is equivalent on this synthetic dataset.
 
 ---
 
@@ -203,34 +209,39 @@ Generates a balanced 200,000-row synthetic dataset simulating pen-tablet writing
 
 **File:** `speech_train.py`
 
-A standalone, improved speech classifier for use when raw `.wav`/`.mp3`/`.flac` audio recordings are available. Uses `librosa` for feature extraction and a sklearn voting ensemble.
+A standalone, improved speech classifier for use when real `.wav`/`.mp3`/`.flac` recordings are available. Uses `librosa` for feature extraction and a sklearn voting ensemble, then also exports a compatible `MultimodalNet` `.pt` file for inclusion in `final_model.pt`.
 
 **60+ acoustic features extracted:**
 
-- **MFCCs**: 40 mean + 40 std (80 values)
-- **Delta & Delta² MFCCs**: 40 + 40 temporal derivatives
-- **Chroma**: 12 mean + 12 std
-- **Spectral**: contrast (×7), rolloff, bandwidth, centroid, flatness
-- **Prosodic**: F0 mean/std/range, voiced fraction, speaking rate
-- **Voice quality**: jitter, shimmer
-- **Pause analysis**: pause count, mean/max duration, silence ratio
-- **Energy**: ZCR mean/std, RMS mean/std
+| Group | Count | Description |
+|-------|-------|-------------|
+| MFCCs (mean + std) | 80 | Timbral texture |
+| Delta & Delta² MFCCs | 80 | Temporal dynamics |
+| Chroma (mean + std) | 24 | Harmonic content |
+| Spectral (contrast, rolloff, bandwidth, centroid, flatness) | 11 | Spectral shape |
+| ZCR, RMS (mean + std) | 4 | Energy / noisiness |
+| F0 (mean, std, range, voiced fraction) | 4 | Pitch characteristics |
+| Pause analysis (count, mean/max duration, silence ratio) | 4 | Hesitation patterns |
+| Jitter, Shimmer, Speaking rate | 3 | Voice quality |
 
-**Ensemble classifier:**
+**Audio preprocessing:** Silence trimming (`top_db=25`) + peak normalisation
+
+**Data augmentation (optional, `AUGMENT=True`):** Gaussian noise, time-stretch (×0.9), pitch-shift (±1 semitone) — 4 augmented copies per file
+
+**sklearn pipeline:** `StandardScaler → VotingClassifier(RF + SVM + GradientBoosting)`  
+**Evaluation:** Stratified 5-Fold cross-validation + held-out test set
+
+---
+
+## Ensemble & Fusion
+
+`main.py` (Step 4) loads all available `.pt` checkpoints and fuses them into `result/final_model.pt`. Models with higher ROC-AUC automatically receive a larger vote:
+
 ```
-StandardScaler →
-  VotingClassifier (soft vote, equal weights):
-    ├── RandomForestClassifier     (300 trees, balanced)
-    ├── GradientBoostingClassifier (200 estimators, lr=0.05)
-    └── SVC                        (RBF kernel, C=10, balanced)
+final_prob = Σ (prob_i × AUC_i) / Σ AUC_i
 ```
 
-**Data augmentation applied during loading:**
-- Gaussian noise injection
-- Time stretching (0.9×, mirroring slower AD speech)
-- Pitch shifting (±1 semitone)
-
-**Evaluation:** 5-fold stratified cross-validation + held-out test set + ROC curve + confusion matrix + feature importance plot
+If a checkpoint is missing (e.g. no `train/` audio folder), it is silently skipped — the ensemble still runs with 1 or 2 models. Each sub-model's preprocessing objects (imputer, scaler) are saved inside `final_model.pt` so inference requires only that single file.
 
 ---
 
@@ -270,11 +281,11 @@ pip install torch scikit-learn librosa pandas numpy soundfile joblib seaborn mat
    ```
    Datasets/nacc.csv
    ```
-3. The pipeline uses only `PACKET == "I"` (initial visit) rows where `NACCUDSD ∈ {1, 3}` (Normal cognition = 1, AD = 3).
+3. Required columns: `PACKET`, `NACCUDSD`, `NACCID`, `NACCAGE`, `SEX`, `EDUC`, `MMSELOC`, `CDRGLOB`, `MEMORY`, `JUDGMENT`, `COMMUN`, `HOMEHOBB`, `PERSCARE`
 
 ### Handwriting Dataset
 
-Generated automatically on first run. No external data needed.
+Generated automatically on first run — no external data needed.
 ```
 Datasets/handwriting_dataset.csv   ← created by hw.py
 ```
@@ -307,50 +318,53 @@ Public audio datasets you can use:
 python main.py
 ```
 
-This runs all three steps in sequence:
+Runs all five steps in sequence:
 1. Train the Speech + Clinical model on NACC data
 2. Generate the handwriting dataset and train the handwriting model
-3. Run predictions on 3 demo patients
-4. Print a side-by-side modality comparison table
+3. Train the raw audio model (skipped automatically if `train/` is absent)
+4. Fuse all checkpoints into `result/final_model.pt`
+5. Run predictions on 3 demo patients and print a modality comparison table
 
 ### Individual Modules
 
 ```bash
-# Train only the speech+clinical model
+# Train only the speech + clinical model
 python speech.py
 
 # Generate handwriting data + train handwriting model
 python hw.py
 
-# Run predictions on 3 sample patients (requires trained models)
-python test.py
-
-# Train the raw-audio ensemble model
+# Train the raw-audio ensemble model (needs train/)
 python speech_train.py
+
+# Run predictions on 3 sample patients (needs trained models)
+python test.py
 ```
 
 ### Predict from Real Audio
 
 ```bash
-# Predict AD vs Healthy from a .wav file
 python test.py /path/to/recording.wav
 ```
 
-The model will extract acoustic features from the audio file and return a probability and label. Note: clinical features will be filled with sensible defaults — for best results, supplement with actual clinical values in the source code.
+The model will extract acoustic features from the audio file and return a probability and label. Clinical features are filled with sensible defaults — for best results, supplement with actual clinical values in the source code.
 
 ### CLI Flags
 
 ```bash
-# Skip training, use existing checkpoints (fast re-run)
+# Skip ALL training — combine existing checkpoints + predict only
 python main.py --skip-train
 
-# Skip only speech training
+# Skip only NACC speech training
 python main.py --skip-speech
 
 # Skip only handwriting training
 python main.py --skip-hw
 
-# Force-regenerate the handwriting dataset
+# Skip only audio training (no train/ folder required)
+python main.py --skip-audio
+
+# Force-regenerate the handwriting dataset from scratch
 python main.py --regen-hw
 ```
 
@@ -358,36 +372,36 @@ python main.py --regen-hw
 
 ## Results & Metrics
 
-The pipeline prints a comparison table like the one below after training. Actual values will vary by NACC dataset version and random seed.
+The pipeline prints a side-by-side comparison table after training. Actual values will vary by NACC dataset version and random seed.
 
 ```
-══════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════════
   MODALITY COMPARISON — TEST SET RESULTS
-══════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════════
 
-  Metric         Speech + Clinical       Handwriting
-  -------------- ---------------------- --------------
-  AUC                         0.97xx <       0.96xx
-  ACCURACY                    0.93xx         0.94xx <
-  PRECISION                   0.92xx         0.94xx <
-  RECALL                      0.95xx <       0.93xx
-  F1                          0.93xx         0.94xx <
+  Metric         Speech+Clinical      Handwriting       Raw Audio
+  -------------- -------------------- ---------------- ----------
+  AUC                      0.97xx <         0.96xx        varies
+  ACCURACY                 0.93xx           0.94xx <      varies
+  PRECISION                0.92xx           0.94xx <      varies
+  RECALL                   0.95xx <         0.93xx        varies
+  F1                       0.93xx           0.94xx <      varies
 
-  < = better score for that metric
+  < = best score for that metric
 ```
 
 **What to look for:**
 - **AUC (ROC)** — primary metric; measures overall discriminative ability
-- **Recall/Sensitivity** — most important for clinical screening; high recall = fewer missed cases
+- **Recall / Sensitivity** — most important for clinical screening; high recall = fewer missed cases
 - **F1** — harmonic mean of precision and recall; balances both
 
-The handwriting model benefits from the large balanced synthetic dataset (200k rows). The speech+clinical model reflects real-world clinical feature distributions from NACC.
+The handwriting model benefits from the large balanced synthetic dataset (200k rows). The speech + clinical model reflects real-world clinical feature distributions from NACC. Raw audio performance is entirely dataset-dependent.
 
 ---
 
 ## Feature Engineering
 
-Both models use domain-informed engineered features computed before training:
+Both MLP models use domain-informed engineered features computed before training:
 
 | Feature | Formula | Rationale |
 |---------|---------|-----------|
@@ -395,7 +409,7 @@ Both models use domain-informed engineered features computed before training:
 | `mmse_cdr` | `MMSELOC × CDRGLOB` | Joint cognitive/functional severity |
 | `pitch_variance` | `pitch_std / pitch_mean` | Normalised pitch variability |
 | `fluency_score` | `velocity_mean / jerk_mean` | Smooth vs. fragmented writing motion |
-| `tremor_pressure` | `tremor_index × pressure_std` | Combined instability measure |
+| `tremor_pressure` | `tremor_index × pressure_std` | Combined motor instability measure |
 | `size_variability` | `letter_size_std / letter_size_mean` | Normalised letter inconsistency |
 | `pause_ratio` | `pen_up_pct / (1 − pen_up_pct)` | Logit-like pen-up ratio |
 
@@ -405,28 +419,31 @@ Both models use domain-informed engineered features computed before training:
 
 | File | Created by | Contents |
 |------|-----------|---------|
-| `Datasets/nacc.csv` | You | Raw NACC dataset |
+| `Datasets/nacc.csv` | You | Raw NACC UDS dataset |
 | `Datasets/speech_features.csv` | `speech.py` | Per-subject synthetic speech features |
 | `Datasets/handwriting_dataset.csv` | `hw.py` | 200k-row synthetic handwriting dataset |
-| `result/speech_model_complete.pt` | `speech.py` | Model weights + imputer + scaler + feature names |
-| `result/hw_model_complete.pt` | `hw.py` | Model weights + imputer + scaler + feature names |
-| `model/alzheimer_pipeline.pkl` | `speech_train.py` | Full sklearn pipeline (scaler + ensemble) |
+| `result/speech_model_complete.pt` | `speech.py` | Weights + imputer + scaler + feature names |
+| `result/hw_model_complete.pt` | `hw.py` | Weights + imputer + scaler + feature names |
+| `result/speech_audio_model_complete.pt` | `speech_train.py` | Weights + imputer + scaler + feature names |
+| `result/final_model.pt` | `main.py` | Fused ensemble: all sub-model states + AUC weights |
+| `model/alzheimer_pipeline.pkl` | `speech_train.py` | Full sklearn pipeline (scaler + RF+SVM+GBM) |
 | `model/feature_names.pkl` | `speech_train.py` | Feature name list for inference |
-| `plots/pca_scatter.png` | `speech_train.py` | 2D PCA of speech features |
 | `plots/confusion_matrix.png` | `speech_train.py` | Test-set confusion matrix |
 | `plots/roc_curve.png` | `speech_train.py` | ROC curve with AUC |
 | `plots/feature_importance.png` | `speech_train.py` | Top-20 RF feature importances |
+| `plots/pca_scatter.png` | `speech_train.py` | 2D PCA of speech features |
 
 ---
 
 ## Limitations
 
-- **Synthetic data**: The handwriting dataset is entirely synthetic. Real-world pen-tablet data would yield more clinically valid models.
-- **Speech proxies**: The speech features in `speech.py` are synthetically assigned to NACC subjects — not extracted from real recordings. Use `speech_train.py` with real audio for genuine acoustic modelling.
+- **Synthetic data**: The handwriting dataset and speech features in `speech.py` are synthetically generated. Real-world pen-tablet and audio data would yield more clinically valid models.
 - **NACC access**: The NACC dataset requires institutional registration and is not redistributable.
-- **No temporal modelling**: The MLP architecture does not capture longitudinal progression. A recurrent or transformer-based model could improve detection in follow-up visit data.
+- **Audio model**: Performance depends entirely on the quality and size of the `.wav` dataset you provide.
+- **No temporal modelling**: The MLP architecture does not capture longitudinal progression. A recurrent or transformer-based model could improve detection across follow-up visits.
 - **Demographic bias**: Models trained on NACC reflect the demographic distribution of that cohort. Performance may vary across different populations.
-- **Not validated clinically**: These models have not undergone clinical validation and should not be used for diagnosis.
+- **Binary classification only**: The pipeline distinguishes Healthy vs. AD. It does not classify MCI subtypes or other dementia forms.
+- **Not clinically validated**: These models have not undergone clinical validation and must not be used for diagnosis.
 
 ---
 
@@ -436,12 +453,17 @@ If you use this code in your research, please cite appropriately and acknowledge
 
 ```bibtex
 @dataset{nacc_uds,
-  title     = {National Alzheimer's Coordinating Center — Uniform Data Set},
-  author    = {NACC},
-  url       = {https://naccdata.org},
-  note      = {Data collected through funding from NIA/NIH Grant U24 AG072122}
+  title  = {National Alzheimer's Coordinating Center — Uniform Data Set},
+  author = {NACC},
+  url    = {https://naccdata.org},
+  note   = {Data collected through funding from NIA/NIH Grant U24 AG072122}
 }
 ```
+
+Related work this pipeline draws on:
+
+- Luz et al., *ADReSS Challenge: Speech-based Automatic AD Detection*, INTERSPEECH 2020
+- Impedovo & Pirlo, *Dynamic Handwriting Analysis for the Assessment of Neurodegenerative Diseases*, IEEE Reviews in Biomedical Engineering, 2019
 
 ---
 

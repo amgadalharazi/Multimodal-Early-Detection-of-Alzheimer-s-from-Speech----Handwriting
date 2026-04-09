@@ -523,6 +523,111 @@ def predict(file_path: str, threshold: float = 0.5) -> dict:
         "confidence": confidence,
     }
 
+# ─────────────────────────────────────────────
+# 11. SAVE PYTORCH .pt MODEL (compatible with test.py)
+# ─────────────────────────────────────────────
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split as tts
+from sklearn.metrics import roc_auc_score as ras
+
+class MultimodalNet(nn.Module):
+    def __init__(self, input_dim):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Dropout(0.4),
+            nn.Linear(128, 64),        nn.BatchNorm1d(64),  nn.ReLU(), nn.Dropout(0.3),
+            nn.Linear(64,  32),        nn.BatchNorm1d(32),  nn.ReLU(), nn.Dropout(0.2),
+            nn.Linear(32,  1)
+        )
+    def forward(self, x):
+        return self.net(x).squeeze()
+
+print("\n" + "=" * 50)
+print("Training PyTorch MultimodalNet for .pt export ...")
+print("=" * 50)
+
+SEED       = 42
+BATCH_SIZE = 64
+NUM_EPOCHS = 100
+PATIENCE   = 15
+torch.manual_seed(SEED)
+
+# ── Impute + scale (kept separate so test.py can call imputer/scaler directly) ──
+pt_imputer = SimpleImputer(strategy="median")
+pt_scaler  = StandardScaler()
+
+X_tr, X_te, y_tr, y_te = tts(X, y, test_size=0.2, stratify=y, random_state=SEED)
+X_tr, X_va, y_tr, y_va = tts(X_tr, y_tr, test_size=0.15, stratify=y_tr, random_state=SEED)
+
+X_tr = pt_scaler.fit_transform(pt_imputer.fit_transform(X_tr))
+X_va = pt_scaler.transform(pt_imputer.transform(X_va))
+X_te = pt_scaler.transform(pt_imputer.transform(X_te))
+
+to_t = lambda a, dt: torch.tensor(a, dtype=dt)
+X_tr_t = to_t(X_tr, torch.float32);  y_tr_t = to_t(y_tr.astype(float), torch.float32)
+X_va_t = to_t(X_va, torch.float32);  y_va_t = to_t(y_va.astype(float), torch.float32)
+X_te_t = to_t(X_te, torch.float32);  y_te_t = to_t(y_te.astype(float), torch.float32)
+
+loader = DataLoader(TensorDataset(X_tr_t, y_tr_t), batch_size=BATCH_SIZE, shuffle=True)
+
+model     = MultimodalNet(X_tr_t.shape[1])
+pos_w     = float((y_tr_t == 0).sum() / (y_tr_t == 1).sum())
+criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_w))
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=5)
+
+best_auc, no_improve, best_state = 0.0, 0, None
+
+for epoch in range(NUM_EPOCHS):
+    model.train()
+    for xb, yb in loader:
+        optimizer.zero_grad()
+        loss = criterion(model(xb), yb)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+
+    model.eval()
+    with torch.no_grad():
+        val_probs = torch.sigmoid(model(X_va_t)).numpy()
+        val_auc   = ras(y_va_t.numpy(), val_probs)
+    scheduler.step(val_auc)
+
+    if val_auc > best_auc:
+        best_auc   = val_auc
+        best_state = {k: v.clone() for k, v in model.state_dict().items()}
+        no_improve = 0
+    else:
+        no_improve += 1
+        if no_improve >= PATIENCE:
+            print(f"  Early stopping at epoch {epoch}")
+            break
+
+    if epoch % 20 == 0:
+        print(f"  Epoch {epoch:3d} | Val AUC: {val_auc:.4f}")
+
+model.load_state_dict(best_state)
+model.eval()
+with torch.no_grad():
+    test_probs = torch.sigmoid(model(X_te_t)).numpy()
+    test_preds = (test_probs >= 0.5).astype(int)
+
+print(f"  Test AUC : {ras(y_te_t.numpy(), test_probs):.4f}")
+
+# ── Save in the exact format test.py expects ──
+os.makedirs("result", exist_ok=True)
+torch.save({
+    "model_state_dict": model.state_dict(),
+    "feature_names":    feat_names,   # list from get_feature_names()
+    "imputer":          pt_imputer,
+    "scaler":           pt_scaler,
+}, "result/speech_audio_model_complete.pt")
+
+print("✅  Saved → result/speech_audio_model_complete.pt")
+
 
 # Quick smoke-test on the first training file
 result = predict(example_file)
