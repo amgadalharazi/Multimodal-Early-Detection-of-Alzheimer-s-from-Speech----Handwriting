@@ -14,6 +14,7 @@ Improvements over baseline:
 
 import os
 import warnings
+
 warnings.filterwarnings("ignore")
 
 import numpy as np
@@ -43,14 +44,15 @@ from sklearn.decomposition import PCA
 # ─────────────────────────────────────────────
 # 0. CONFIG
 # ─────────────────────────────────────────────
-DATA_PATH    = "train"
-MODEL_DIR    = "model"
-SAMPLE_RATE  = 16_000      # resample everything to 16 kHz
-N_MFCC       = 40
-AUGMENT      = True        # set False to skip augmentation
+DATA_PATH = "train"
+MODEL_DIR = "model"
+SAMPLE_RATE = 16_000  # resample everything to 16 kHz
+N_MFCC = 40
+AUGMENT = True  # set False to skip augmentation
 RANDOM_STATE = 42
 
 LABELS = {"healthy": 0, "Alzheimer": 1}
+
 
 # ─────────────────────────────────────────────
 # 1. AUDIO PREPROCESSING
@@ -58,7 +60,7 @@ LABELS = {"healthy": 0, "Alzheimer": 1}
 def preprocess(y: np.ndarray, sr: int) -> np.ndarray:
     """Trim silence, peak-normalise."""
     y, _ = librosa.effects.trim(y, top_db=25)
-    peak  = np.max(np.abs(y))
+    peak = np.max(np.abs(y))
     if peak > 0:
         y = y / peak
     return y
@@ -75,60 +77,64 @@ def extract_features(file_path: str) -> np.ndarray:
 
     # — MFCCs (mean + std → 80 values) —————————————————————————
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=N_MFCC)
-    features["mfcc_mean"] = np.mean(mfcc, axis=1)          # 40
-    features["mfcc_std"]  = np.std(mfcc,  axis=1)          # 40
+    features["mfcc_mean"] = np.mean(mfcc, axis=1)  # 40
+    features["mfcc_std"] = np.std(mfcc, axis=1)  # 40
 
     # — Delta MFCCs (capture temporal change) ——————————————————
-    delta  = librosa.feature.delta(mfcc)
+    delta = librosa.feature.delta(mfcc)
     delta2 = librosa.feature.delta(mfcc, order=2)
-    features["delta_mean"]  = np.mean(delta,  axis=1)      # 40
-    features["delta2_mean"] = np.mean(delta2, axis=1)      # 40
+    features["delta_mean"] = np.mean(delta, axis=1)  # 40
+    features["delta2_mean"] = np.mean(delta2, axis=1)  # 40
 
     # — Chroma ——————————————————————————————————————————————————
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
-    features["chroma_mean"] = np.mean(chroma, axis=1)      # 12
-    features["chroma_std"]  = np.std(chroma,  axis=1)      # 12
+    features["chroma_mean"] = np.mean(chroma, axis=1)  # 12
+    features["chroma_std"] = np.std(chroma, axis=1)  # 12
 
     # — Spectral features ———————————————————————————————————————
-    contrast   = librosa.feature.spectral_contrast(y=y, sr=sr)
-    rolloff    = librosa.feature.spectral_rolloff(y=y, sr=sr)
-    bandwidth  = librosa.feature.spectral_bandwidth(y=y, sr=sr)
-    centroid   = librosa.feature.spectral_centroid(y=y, sr=sr)
-    flatness   = librosa.feature.spectral_flatness(y=y)
+    contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
+    rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)
+    bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)
+    centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
+    flatness = librosa.feature.spectral_flatness(y=y)
 
-    features["contrast_mean"]  = np.mean(contrast,  axis=1)   # 7
-    features["rolloff_mean"]   = [np.mean(rolloff)]            # 1
-    features["bandwidth_mean"] = [np.mean(bandwidth)]          # 1
-    features["centroid_mean"]  = [np.mean(centroid)]           # 1
-    features["flatness_mean"]  = [np.mean(flatness)]           # 1
+    features["contrast_mean"] = np.mean(contrast, axis=1)  # 7
+    features["rolloff_mean"] = [np.mean(rolloff)]  # 1
+    features["bandwidth_mean"] = [np.mean(bandwidth)]  # 1
+    features["centroid_mean"] = [np.mean(centroid)]  # 1
+    features["flatness_mean"] = [np.mean(flatness)]  # 1
 
     # — Zero-crossing rate ——————————————————————————————————————
     zcr = librosa.feature.zero_crossing_rate(y)
     features["zcr_mean"] = [np.mean(zcr)]
-    features["zcr_std"]  = [np.std(zcr)]
+    features["zcr_std"] = [np.std(zcr)]
 
     # — RMS energy ——————————————————————————————————————————————
     rms = librosa.feature.rms(y=y)
     features["rms_mean"] = [np.mean(rms)]
-    features["rms_std"]  = [np.std(rms)]
+    features["rms_std"] = [np.std(rms)]
 
     # — Fundamental frequency / Pitch (F0) ————————————————————
     # Alzheimer patients often show reduced pitch variability
     f0, voiced_flag, _ = librosa.pyin(
-        y, fmin=librosa.note_to_hz("C2"), fmax=librosa.note_to_hz("C7"),
-        sr=sr, fill_na=0.0
+        y,
+        fmin=librosa.note_to_hz("C2"),
+        fmax=librosa.note_to_hz("C7"),
+        sr=sr,
+        fill_na=0.0,
     )
     voiced_f0 = f0[voiced_flag == 1] if np.any(voiced_flag) else np.array([0.0])
-    features["f0_mean"]    = [np.mean(voiced_f0)]
-    features["f0_std"]     = [np.std(voiced_f0)]              # pitch variability
-    features["f0_range"]   = [np.ptp(voiced_f0)]              # pitch range
-    features["voiced_frac"]= [np.mean(voiced_flag)]           # voicing fraction
+    features["f0_mean"] = [np.mean(voiced_f0)]
+    features["f0_std"] = [np.std(voiced_f0)]  # pitch variability
+    features["f0_range"] = [np.ptp(voiced_f0)]  # pitch range
+    features["voiced_frac"] = [np.mean(voiced_flag)]  # voicing fraction
 
     # — Pause / silence analysis ————————————————————————————————
     # Alzheimer speech has more/longer pauses
     frame_length, hop_length = 512, 256
-    energy = librosa.feature.rms(y=y, frame_length=frame_length,
-                                  hop_length=hop_length)[0]
+    energy = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[
+        0
+    ]
     silence_threshold = 0.01 * np.max(energy)
     silent_frames = energy < silence_threshold
     pause_count, in_pause = 0, False
@@ -148,10 +154,10 @@ def extract_features(file_path: str) -> np.ndarray:
         pause_count += 1
         pause_lengths.append(current_pause)
 
-    features["pause_count"]    = [pause_count]
+    features["pause_count"] = [pause_count]
     features["pause_mean_dur"] = [np.mean(pause_lengths) if pause_lengths else 0]
-    features["pause_max_dur"]  = [np.max(pause_lengths)  if pause_lengths else 0]
-    features["silence_ratio"]  = [np.mean(silent_frames)]
+    features["pause_max_dur"] = [np.max(pause_lengths) if pause_lengths else 0]
+    features["silence_ratio"] = [np.mean(silent_frames)]
 
     # — Jitter approximation (cycle-to-cycle F0 variation) ———
     if len(voiced_f0) > 1:
@@ -179,18 +185,34 @@ def extract_features(file_path: str) -> np.ndarray:
 def get_feature_names() -> list[str]:
     """Return feature names matching extract_features() output."""
     names = []
-    names += [f"mfcc_mean_{i}"   for i in range(N_MFCC)]
-    names += [f"mfcc_std_{i}"    for i in range(N_MFCC)]
-    names += [f"delta_mean_{i}"  for i in range(N_MFCC)]
+    names += [f"mfcc_mean_{i}" for i in range(N_MFCC)]
+    names += [f"mfcc_std_{i}" for i in range(N_MFCC)]
+    names += [f"delta_mean_{i}" for i in range(N_MFCC)]
     names += [f"delta2_mean_{i}" for i in range(N_MFCC)]
     names += [f"chroma_mean_{i}" for i in range(12)]
-    names += [f"chroma_std_{i}"  for i in range(12)]
-    names += [f"contrast_{i}"    for i in range(7)]
-    names += ["rolloff","bandwidth","centroid","flatness",
-              "zcr_mean","zcr_std","rms_mean","rms_std",
-              "f0_mean","f0_std","f0_range","voiced_frac",
-              "pause_count","pause_mean_dur","pause_max_dur","silence_ratio",
-              "jitter","shimmer","speaking_rate"]
+    names += [f"chroma_std_{i}" for i in range(12)]
+    names += [f"contrast_{i}" for i in range(7)]
+    names += [
+        "rolloff",
+        "bandwidth",
+        "centroid",
+        "flatness",
+        "zcr_mean",
+        "zcr_std",
+        "rms_mean",
+        "rms_std",
+        "f0_mean",
+        "f0_std",
+        "f0_range",
+        "voiced_frac",
+        "pause_count",
+        "pause_mean_dur",
+        "pause_max_dur",
+        "silence_ratio",
+        "jitter",
+        "shimmer",
+        "speaking_rate",
+    ]
     return names
 
 
@@ -210,7 +232,7 @@ def augment_audio(y: np.ndarray, sr: int) -> list[np.ndarray]:
     augmented.append(stretched)
 
     # Pitch shift ±1 semitone
-    up   = librosa.effects.pitch_shift(y, sr=sr, n_steps=1)
+    up = librosa.effects.pitch_shift(y, sr=sr, n_steps=1)
     down = librosa.effects.pitch_shift(y, sr=sr, n_steps=-1)
     augmented.append(up)
     augmented.append(down)
@@ -229,8 +251,11 @@ X_raw, y_raw, file_list = [], [], []
 
 for label, idx in LABELS.items():
     folder = os.path.join(DATA_PATH, label)
-    files  = [f for f in os.listdir(folder)
-              if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg"))]
+    files = [
+        f
+        for f in os.listdir(folder)
+        if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg"))
+    ]
     print(f"  {label}: {len(files)} files")
 
     for fname in files:
@@ -261,6 +286,7 @@ for label, idx in LABELS.items():
 def _extract_from_array(y: np.ndarray, sr: int) -> np.ndarray:
     """Same as extract_features() but operates on a numpy array directly."""
     import tempfile, soundfile as sf
+
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         sf.write(tmp.name, y, sr)
         feats = extract_features(tmp.name)
@@ -269,7 +295,7 @@ def _extract_from_array(y: np.ndarray, sr: int) -> np.ndarray:
 
 
 X = np.array(X_raw, dtype=np.float32)
-y = np.array(y_raw,  dtype=np.int32)
+y = np.array(y_raw, dtype=np.int32)
 feat_names = get_feature_names()
 
 print(f"\nFinal dataset — X: {X.shape}, y: {y.shape}")
@@ -290,8 +316,15 @@ colors = ["steelblue", "tomato"]
 class_names = ["Healthy", "Alzheimer"]
 for i, (name, c) in enumerate(zip(class_names, colors)):
     mask = y == i
-    plt.scatter(X_pca[mask, 0], X_pca[mask, 1], label=name,
-                alpha=0.6, c=c, edgecolors="none", s=30)
+    plt.scatter(
+        X_pca[mask, 0],
+        X_pca[mask, 1],
+        label=name,
+        alpha=0.6,
+        c=c,
+        edgecolors="none",
+        s=30,
+    )
 plt.title("PCA — Speech Features (Healthy vs Alzheimer)", fontsize=12)
 plt.xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)")
 plt.ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)")
@@ -316,29 +349,41 @@ plt.show()
 # ─────────────────────────────────────────────
 # 6. MODEL — VOTING ENSEMBLE INSIDE A PIPELINE
 # ─────────────────────────────────────────────
-rf  = RandomForestClassifier(
-    n_estimators=300, max_depth=None,
-    class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1
+rf = RandomForestClassifier(
+    n_estimators=300,
+    max_depth=None,
+    class_weight="balanced",
+    random_state=RANDOM_STATE,
+    n_jobs=-1,
 )
-gb  = GradientBoostingClassifier(
-    n_estimators=200, learning_rate=0.05,
-    max_depth=4, subsample=0.8, random_state=RANDOM_STATE
+gb = GradientBoostingClassifier(
+    n_estimators=200,
+    learning_rate=0.05,
+    max_depth=4,
+    subsample=0.8,
+    random_state=RANDOM_STATE,
 )
 svm = SVC(
-    kernel="rbf", C=10, gamma="scale",
-    class_weight="balanced", probability=True, random_state=RANDOM_STATE
+    kernel="rbf",
+    C=10,
+    gamma="scale",
+    class_weight="balanced",
+    probability=True,
+    random_state=RANDOM_STATE,
 )
 
 ensemble = VotingClassifier(
     estimators=[("rf", rf), ("gb", gb), ("svm", svm)],
-    voting="soft",          # soft voting uses predicted probabilities
+    voting="soft",  # soft voting uses predicted probabilities
     weights=[1, 1, 1],
 )
 
-pipeline = Pipeline([
-    ("scaler",   StandardScaler()),
-    ("ensemble", ensemble),
-])
+pipeline = Pipeline(
+    [
+        ("scaler", StandardScaler()),
+        ("ensemble", ensemble),
+    ]
+)
 
 
 # ─────────────────────────────────────────────
@@ -350,14 +395,24 @@ print("=" * 50)
 
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
 cv_results = cross_validate(
-    pipeline, X, y, cv=cv,
+    pipeline,
+    X,
+    y,
+    cv=cv,
     scoring=["accuracy", "f1", "roc_auc"],
-    return_train_score=True, n_jobs=-1
+    return_train_score=True,
+    n_jobs=-1,
 )
 
-print(f"  Accuracy  : {cv_results['test_accuracy'].mean():.3f} ± {cv_results['test_accuracy'].std():.3f}")
-print(f"  F1        : {cv_results['test_f1'].mean():.3f} ± {cv_results['test_f1'].std():.3f}")
-print(f"  ROC-AUC   : {cv_results['test_roc_auc'].mean():.3f} ± {cv_results['test_roc_auc'].std():.3f}")
+print(
+    f"  Accuracy  : {cv_results['test_accuracy'].mean():.3f} ± {cv_results['test_accuracy'].std():.3f}"
+)
+print(
+    f"  F1        : {cv_results['test_f1'].mean():.3f} ± {cv_results['test_f1'].std():.3f}"
+)
+print(
+    f"  ROC-AUC   : {cv_results['test_roc_auc'].mean():.3f} ± {cv_results['test_roc_auc'].std():.3f}"
+)
 
 
 # ─────────────────────────────────────────────
@@ -375,8 +430,8 @@ print("\n" + "=" * 50)
 print("Test-set Evaluation")
 print("=" * 50)
 
-y_pred      = pipeline.predict(X_test)
-y_prob      = pipeline.predict_proba(X_test)[:, 1]
+y_pred = pipeline.predict(X_test)
+y_prob = pipeline.predict_proba(X_test)[:, 1]
 
 print(classification_report(y_test, y_pred, target_names=class_names))
 print(f"ROC-AUC: {roc_auc_score(y_test, y_prob):.4f}")
@@ -384,8 +439,15 @@ print(f"ROC-AUC: {roc_auc_score(y_test, y_prob):.4f}")
 # — Confusion matrix —
 cm = confusion_matrix(y_test, y_pred)
 fig, ax = plt.subplots(figsize=(5, 4))
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-            xticklabels=class_names, yticklabels=class_names, ax=ax)
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt="d",
+    cmap="Blues",
+    xticklabels=class_names,
+    yticklabels=class_names,
+    ax=ax,
+)
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 ax.set_title("Confusion Matrix")
@@ -402,9 +464,9 @@ plt.savefig("plots/roc_curve.png", dpi=150)
 plt.show()
 
 # — Feature importance from the RF member —
-scaler_  = pipeline.named_steps["scaler"]
-ensemble_= pipeline.named_steps["ensemble"]
-rf_      = ensemble_.estimators_[0]  # trained RF
+scaler_ = pipeline.named_steps["scaler"]
+ensemble_ = pipeline.named_steps["ensemble"]
+rf_ = ensemble_.estimators_[0]  # trained RF
 
 importances = rf_.feature_importances_
 top_k = 20
@@ -425,8 +487,8 @@ plt.show()
 # ─────────────────────────────────────────────
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-joblib.dump(pipeline,   f"{MODEL_DIR}/alzheimer_pipeline.pkl")
-joblib.dump(LABELS,     f"{MODEL_DIR}/labels.pkl")
+joblib.dump(pipeline, f"{MODEL_DIR}/alzheimer_pipeline.pkl")
+joblib.dump(LABELS, f"{MODEL_DIR}/labels.pkl")
 joblib.dump(feat_names, f"{MODEL_DIR}/feature_names.pkl")
 
 print(f"\n✅  Saved pipeline → {MODEL_DIR}/alzheimer_pipeline.pkl")
@@ -447,7 +509,7 @@ def predict(file_path: str, threshold: float = 0.5) -> dict:
         }
     """
     feats = extract_features(file_path).reshape(1, -1)
-    prob  = pipeline.predict_proba(feats)[0, 1]
+    prob = pipeline.predict_proba(feats)[0, 1]
     label = "Alzheimer" if prob >= threshold else "Healthy"
     if prob < 0.35 or prob > 0.65:
         confidence = "High"
@@ -455,10 +517,14 @@ def predict(file_path: str, threshold: float = 0.5) -> dict:
         confidence = "Medium"
     else:
         confidence = "Low"
-    return {"label": label, "probability": round(float(prob), 4),
-            "confidence": confidence}
+    return {
+        "label": label,
+        "probability": round(float(prob), 4),
+        "confidence": confidence,
+    }
 
 
 # Quick smoke-test on the first training file
 result = predict(example_file)
 print(f"\nSample prediction → {result}")
+    
