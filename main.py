@@ -27,6 +27,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 from pathlib import Path
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 BASE_DIR = Path(__file__).resolve().parent
 RESULT_DIR = BASE_DIR / "result"
@@ -342,6 +344,63 @@ def print_comparison(speech_metrics, hw_metrics, audio_metrics):
     print()
 
 
+# ─────────────────────────────────────────────
+# RADAR CHART COMPARISON (saved to plots/)
+# ─────────────────────────────────────────────
+def plot_radar_comparison(speech_metrics, hw_metrics, audio_metrics):
+    """Radar chart comparing models across AUC, Accuracy, Precision, Recall, F1."""
+    plots_dir = BASE_DIR / "plots"
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    all_modalities = {
+        "Speech+Clinical": speech_metrics,
+        "Handwriting": hw_metrics,
+        "Raw Audio": audio_metrics,
+    }
+    active = {name: m for name, m in all_modalities.items() if m is not None}
+    if not active:
+        print("  ⚠ No metrics available, skipping radar chart.")
+        return
+
+    metrics = ["auc", "accuracy", "precision", "recall", "f1"]
+    labels = ["AUC", "Accuracy", "Precision", "Recall", "F1"]
+    n = len(labels)
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
+    angles += angles[:1]   # close the circle
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels, fontsize=12, fontweight='bold')
+    ax.set_ylim(0, 1)
+    ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
+    ax.set_yticklabels(['0.2', '0.4', '0.6', '0.8', '1.0'], color='grey', fontsize=8)
+    ax.yaxis.grid(color='grey', linestyle='--', linewidth=0.5, alpha=0.7)
+    ax.xaxis.grid(color='grey', linestyle='--', linewidth=0.5, alpha=0.7)
+
+    colors = sns.color_palette("Set2", n_colors=len(active))
+    for idx, (name, m) in enumerate(active.items()):
+        values = [m.get(k, 0.0) for k in metrics]
+        values += values[:1]   # close the circle
+        ax.fill(angles, values, alpha=0.1, color=colors[idx])
+        ax.plot(angles, values, linewidth=2, color=colors[idx], label=name)
+        # Annotate each point
+        for angle, val in zip(angles[:-1], values[:-1]):
+            ax.text(angle, val + 0.05, f'{val:.2f}', ha='center', va='center',
+                    fontsize=8, color=colors[idx], fontweight='bold')
+
+    plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1), fontsize=11)
+    plt.title("Model Performance Radar — Multimodal Comparison",
+              size=14, fontweight='bold', pad=20)
+    plt.tight_layout()
+    out_path = plots_dir / "radar_comparison.png"
+    plt.savefig(out_path, dpi=200, bbox_inches='tight')
+    plt.close()
+    print(f"  ✓ Saved radar chart → {out_path}")
+
+
 # ══════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════
@@ -422,9 +481,10 @@ def main():
         # ── Step 5: Run predictions using final_model.pt ─────────
         step_test()
 
-    # ── Comparison table ─────────────────────────────────────────
+    # ── Comparison table + radar chart ───────────────────────────
     if any(m is not None for m in [speech_metrics, hw_metrics, audio_metrics]):
         print_comparison(speech_metrics, hw_metrics, audio_metrics)
+        plot_radar_comparison(speech_metrics, hw_metrics, audio_metrics)
 
     # ── Summary ──────────────────────────────────────────────────
     elapsed = time.time() - t0
