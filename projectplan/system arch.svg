@@ -1,0 +1,77 @@
+<svg width="1100" height="480" xmlns="http://www.w3.org/2000/svg">
+
+<style>
+.box { fill:#ffffff; stroke:#000000; stroke-width:1.5; rx:6; }
+.title { font-size:18px; font-weight:bold; text-anchor:middle; font-family:Times New Roman; }
+.text { font-size:12px; text-anchor:middle; font-family:Times New Roman; }
+.small { font-size:11px; text-anchor:middle; font-family:Times New Roman; }
+.arrow { stroke:#000; stroke-width:1.2; marker-end:url(#arrow); }
+</style>
+
+<defs>
+<marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+</marker>
+</defs>
+
+<text x="550" y="30" class="title">Multimodal Alzheimer's Detection Framework</text>
+
+<!-- INPUTS -->
+<rect x="60" y="100" width="180" height="60" class="box"/>
+<text x="150" y="130" class="text">Clinical + Speech</text>
+
+<rect x="60" y="200" width="180" height="60" class="box"/>
+<text x="150" y="230" class="text">Handwriting Data</text>
+
+<rect x="60" y="300" width="180" height="60" class="box"/>
+<text x="150" y="330" class="text">Raw Audio Signal</text>
+
+<!-- PROCESS -->
+<rect x="300" y="90" width="220" height="70" class="box"/>
+<text x="410" y="120" class="text">Feature Engineering</text>
+<text x="410" y="140" class="small">(clinical + speech)</text>
+
+<rect x="300" y="200" width="220" height="70" class="box"/>
+<text x="410" y="230" class="text">Handwriting Feature</text>
+<text x="410" y="250" class="small">Extraction</text>
+
+<rect x="300" y="310" width="220" height="70" class="box"/>
+<text x="410" y="340" class="text">Audio Feature Extraction</text>
+<text x="410" y="360" class="small">(MFCC, pitch, pauses)</text>
+
+<!-- MODELS -->
+<rect x="600" y="90" width="200" height="70" class="box"/>
+<text x="700" y="125" class="text">Neural Model</text>
+
+<rect x="600" y="200" width="200" height="70" class="box"/>
+<text x="700" y="235" class="text">Neural Model</text>
+
+<rect x="600" y="310" width="200" height="70" class="box"/>
+<text x="700" y="345" class="text">Ensemble / ML Model</text>
+
+<!-- FUSION -->
+<rect x="860" y="180" width="200" height="100" class="box"/>
+<text x="960" y="215" class="text">Weighted Fusion</text>
+<text x="960" y="235" class="small">(AUC-based)</text>
+
+<!-- OUTPUT -->
+<rect x="860" y="320" width="200" height="70" class="box"/>
+<text x="960" y="350" class="text">Final Diagnosis</text>
+<text x="960" y="370" class="small">(AD / Healthy)</text>
+
+<!-- ARROWS -->
+<line x1="240" y1="130" x2="300" y2="120" class="arrow"/>
+<line x1="240" y1="230" x2="300" y2="235" class="arrow"/>
+<line x1="240" y1="330" x2="300" y2="340" class="arrow"/>
+
+<line x1="520" y1="120" x2="600" y2="120" class="arrow"/>
+<line x1="520" y1="235" x2="600" y2="235" class="arrow"/>
+<line x1="520" y1="340" x2="600" y2="340" class="arrow"/>
+
+<line x1="800" y1="125" x2="860" y2="210" class="arrow"/>
+<line x1="800" y1="235" x2="860" y2="230" class="arrow"/>
+<line x1="800" y1="345" x2="860" y2="250" class="arrow"/>
+
+<line x1="960" y1="280" x2="960" y2="320" class="arrow"/>
+
+</svg>

@@ -1,0 +1,32 @@
+<svg width="1000" height="300" xmlns="http://www.w3.org/2000/svg">
+
+<style>
+.box { fill:#052e16; stroke:#4ade80; stroke-width:2; rx:10; }
+.text { fill:white; font-size:12px; text-anchor:middle; font-family:Arial; }
+.arrow { stroke:#94a3b8; stroke-width:2; marker-end:url(#arrow); }
+</style>
+
+<defs>
+<marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+</marker>
+</defs>
+
+<rect x="50" y="120" width="160" height="60" class="box"/>
+<text x="130" y="150" class="text">Synthetic Data</text>
+
+<rect x="260" y="120" width="200" height="60" class="box"/>
+<text x="360" y="145" class="text">Feature Engineering</text>
+<text x="360" y="165" class="text">(fluency, tremor, etc.)</text>
+
+<rect x="520" y="120" width="180" height="60" class="box"/>
+<text x="610" y="150" class="text">Scaling + Imputation</text>
+
+<rect x="750" y="120" width="180" height="60" class="box"/>
+<text x="840" y="150" class="text">MultimodalNet</text>
+
+<line x1="210" y1="150" x2="260" y2="150" class="arrow"/>
+<line x1="460" y1="150" x2="520" y2="150" class="arrow"/>
+<line x1="700" y1="150" x2="750" y2="150" class="arrow"/>
+
+</svg>

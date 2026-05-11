@@ -1,0 +1,37 @@
+<svg width="900" height="260" xmlns="http://www.w3.org/2000/svg">
+
+<style>
+.box { fill:#ffffff; stroke:#000; stroke-width:1.5; rx:5; }
+.text { font-size:12px; font-family:Times New Roman; text-anchor:middle; }
+.arrow { stroke:#000; stroke-width:1.2; marker-end:url(#arrow); }
+</style>
+
+<defs>
+<marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+</marker>
+</defs>
+
+<!-- Layers -->
+<rect x="40" y="100" width="120" height="50" class="box"/>
+<text x="100" y="130" class="text">Input (d)</text>
+
+<rect x="180" y="100" width="140" height="50" class="box"/>
+<text x="250" y="130" class="text">FC 128 + BN + ReLU</text>
+
+<rect x="350" y="100" width="140" height="50" class="box"/>
+<text x="420" y="130" class="text">FC 64 + BN + ReLU</text>
+
+<rect x="520" y="100" width="140" height="50" class="box"/>
+<text x="590" y="130" class="text">FC 32 + BN + ReLU</text>
+
+<rect x="690" y="100" width="120" height="50" class="box"/>
+<text x="750" y="130" class="text">Sigmoid Output</text>
+
+<!-- Arrows -->
+<line x1="160" y1="125" x2="180" y2="125" class="arrow"/>
+<line x1="320" y1="125" x2="350" y2="125" class="arrow"/>
+<line x1="490" y1="125" x2="520" y2="125" class="arrow"/>
+<line x1="660" y1="125" x2="690" y2="125" class="arrow"/>
+
+</svg>

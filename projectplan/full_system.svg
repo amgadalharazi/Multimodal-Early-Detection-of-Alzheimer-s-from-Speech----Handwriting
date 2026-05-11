@@ -1,0 +1,59 @@
+<svg width="1100" height="500" xmlns="http://www.w3.org/2000/svg">
+
+  <style>
+    .box { fill:#1e293b; stroke:#38bdf8; stroke-width:2; rx:10; }
+    .text { fill:white; font-size:13px; font-family:Arial; text-anchor:middle; }
+    .title { fill:#38bdf8; font-size:18px; font-weight:bold; text-anchor:middle; }
+    .arrow { stroke:#94a3b8; stroke-width:2; marker-end:url(#arrowhead); }
+  </style>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <text x="550" y="30" class="title">Multimodal Alzheimer's Detection Pipeline</text>
+
+  <!-- INPUTS -->
+  <rect x="50" y="100" width="200" height="60" class="box"/>
+  <text x="150" y="135" class="text">Clinical + Speech Data</text>
+
+  <rect x="50" y="200" width="200" height="60" class="box"/>
+  <text x="150" y="235" class="text">Handwriting Features</text>
+
+  <rect x="50" y="300" width="200" height="60" class="box"/>
+  <text x="150" y="335" class="text">Raw Audio (.wav)</text>
+
+  <!-- MODELS -->
+  <rect x="400" y="90" width="220" height="70" class="box"/>
+  <text x="510" y="125" class="text">Speech + Clinical Model</text>
+
+  <rect x="400" y="200" width="220" height="70" class="box"/>
+  <text x="510" y="235" class="text">Handwriting Model</text>
+
+  <rect x="400" y="310" width="220" height="70" class="box"/>
+  <text x="510" y="345" class="text">Audio Feature Model</text>
+
+  <!-- ENSEMBLE -->
+  <rect x="750" y="170" width="250" height="100" class="box"/>
+  <text x="875" y="210" class="text">Weighted Ensemble</text>
+  <text x="875" y="230" class="text">(AUC-based weights)</text>
+
+  <!-- OUTPUT -->
+  <rect x="750" y="320" width="250" height="80" class="box"/>
+  <text x="875" y="360" class="text">Final Prediction</text>
+  <text x="875" y="380" class="text">(AD / Healthy)</text>
+
+  <!-- ARROWS -->
+  <line x1="250" y1="130" x2="400" y2="125" class="arrow"/>
+  <line x1="250" y1="230" x2="400" y2="235" class="arrow"/>
+  <line x1="250" y1="330" x2="400" y2="345" class="arrow"/>
+
+  <line x1="620" y1="125" x2="750" y2="200" class="arrow"/>
+  <line x1="620" y1="235" x2="750" y2="220" class="arrow"/>
+  <line x1="620" y1="345" x2="750" y2="240" class="arrow"/>
+
+  <line x1="875" y1="270" x2="875" y2="320" class="arrow"/>
+
+</svg>

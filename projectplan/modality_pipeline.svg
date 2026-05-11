@@ -1,0 +1,63 @@
+<svg width="1000" height="320" xmlns="http://www.w3.org/2000/svg">
+
+<style>
+.box { fill:#ffffff; stroke:#000; stroke-width:1.5; rx:5; }
+.text { font-size:12px; font-family:Times New Roman; text-anchor:middle; }
+.arrow { stroke:#000; stroke-width:1.2; marker-end:url(#arrow); }
+</style>
+
+<defs>
+<marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+<polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+</marker>
+</defs>
+
+<!-- SPEECH -->
+<rect x="50" y="60" width="150" height="50" class="box"/>
+<text x="125" y="90" class="text">Speech Input</text>
+
+<rect x="230" y="60" width="200" height="50" class="box"/>
+<text x="330" y="90" class="text">Feature Extraction</text>
+
+<rect x="470" y="60" width="150" height="50" class="box"/>
+<text x="545" y="90" class="text">Classifier</text>
+
+<!-- HANDWRITING -->
+<rect x="50" y="150" width="150" height="50" class="box"/>
+<text x="125" y="180" class="text">Handwriting</text>
+
+<rect x="230" y="150" width="200" height="50" class="box"/>
+<text x="330" y="180" class="text">Feature Engineering</text>
+
+<rect x="470" y="150" width="150" height="50" class="box"/>
+<text x="545" y="180" class="text">Neural Model</text>
+
+<!-- AUDIO -->
+<rect x="50" y="240" width="150" height="50" class="box"/>
+<text x="125" y="270" class="text">Raw Audio</text>
+
+<rect x="230" y="240" width="200" height="50" class="box"/>
+<text x="330" y="270" class="text">MFCC + Spectral Features</text>
+
+<rect x="470" y="240" width="150" height="50" class="box"/>
+<text x="545" y="270" class="text">Ensemble Model</text>
+
+<!-- FUSION -->
+<rect x="700" y="140" width="200" height="70" class="box"/>
+<text x="800" y="175" class="text">Fusion Layer</text>
+
+<!-- ARROWS -->
+<line x1="200" y1="85" x2="230" y2="85" class="arrow"/>
+<line x1="430" y1="85" x2="470" y2="85" class="arrow"/>
+
+<line x1="200" y1="175" x2="230" y2="175" class="arrow"/>
+<line x1="430" y1="175" x2="470" y2="175" class="arrow"/>
+
+<line x1="200" y1="265" x2="230" y2="265" class="arrow"/>
+<line x1="430" y1="265" x2="470" y2="265" class="arrow"/>
+
+<line x1="620" y1="85" x2="700" y2="165" class="arrow"/>
+<line x1="620" y1="175" x2="700" y2="175" class="arrow"/>
+<line x1="620" y1="265" x2="700" y2="195" class="arrow"/>
+
+</svg>
