@@ -1,5 +1,0 @@
-PWD /Users/amgadalhrazi/Projects/Multimodal Early Detection of Alzheimer's from Speech  & Handwriting /research
-INPUT /usr/local/texlive/2026/texmf.cnf
-INPUT /usr/local/texlive/2026/texmf-dist/web2c/texmf.cnf
-INPUT /usr/local/texlive/2026/texmf-var/web2c/pdftex/pdflatex.fmt
-OUTPUT texput.log
