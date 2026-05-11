@@ -22,3 +22,5 @@ train/
 test/
 model/
 Models/
+research/
+logs/
